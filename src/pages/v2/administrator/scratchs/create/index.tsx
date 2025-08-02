@@ -167,7 +167,7 @@ export default function CreateScratchCard() {
         }))
       };
       
-      const response = await fetch('https://api.raspaeganha.net/v1/api/scratchcards/admin/create', {
+      const response = await fetch('https://api.voltraspadinhas.com/v1/api/scratchcards/admin/create', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

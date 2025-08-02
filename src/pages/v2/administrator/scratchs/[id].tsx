@@ -106,8 +106,8 @@ const formatPercentage = (value: string | number) => {
 const fixImageUrl = (url: string | null) => {
   if (!url) return null;
   
-  // Trocar raspa.ae por api.raspaeganha.net
-  let fixedUrl = url.replace('https://raspa.ae/', 'https://api.raspaeganha.net/');
+  // Trocar raspa.ae por api.voltraspadinhas.com
+  let fixedUrl = url.replace('https://raspa.ae/', 'https://api.voltraspadinhas.com/');
   
   // Remover 'prizes/' e 'scratchcards/' após 'uploads/'
   fixedUrl = fixedUrl.replace('/uploads/prizes/', '/uploads/');
@@ -147,7 +147,7 @@ export default function ScratchCardDetailsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`https://api.raspaeganha.net/v1/api/scratchcards/${id}`, {
+      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/scratchcards/${id}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -227,7 +227,7 @@ export default function ScratchCardDetailsPage() {
     setEditError('');
     
     try {
-      const response = await fetch(`https://api.raspaeganha.net/v1/api/scratchcards/admin/${scratchCard.id}`, {
+      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/scratchcards/admin/${scratchCard.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
