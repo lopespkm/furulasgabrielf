@@ -26,6 +26,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2, Upload, ArrowLeft, Gamepad2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Poppins } from 'next/font/google'
+import { toast } from 'sonner'
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -40,7 +43,7 @@ interface Prize {
   product_name?: string
   redemption_value?: number
   probability: number
-  image_url: string
+  is_active: boolean
 }
 
 interface ScratchCard {
@@ -72,9 +75,13 @@ export default function CreateScratchCard() {
       type: 'MONEY',
       value: 0,
       probability: 0,
-      image_url: ''
+      is_active: true
     }
   ])
+
+  // Estados para upload de imagens
+  const [scratchCardImage, setScratchCardImage] = useState<File | null>(null)
+  const [prizeImages, setPrizeImages] = useState<(File | null)[]>([null])
 
   const addPrize = () => {
     setPrizes([...prizes, {
@@ -83,13 +90,19 @@ export default function CreateScratchCard() {
       type: 'MONEY',
       value: 0,
       probability: 0,
-      image_url: ''
+      is_active: true
     }])
+    // Adicionar slot para nova imagem
+    setPrizeImages([...prizeImages, null])
+    toast.success('Novo prêmio adicionado!');
   }
 
   const removePrize = (index: number) => {
     if (prizes.length > 1) {
       setPrizes(prizes.filter((_, i) => i !== index))
+      // Remover imagem correspondente
+      setPrizeImages(prizeImages.filter((_, i) => i !== index))
+      toast.success('Prêmio removido!');
     }
   }
 
@@ -119,73 +132,98 @@ export default function CreateScratchCard() {
     });
     
     setPrizes(updatedPrizes);
+    toast.success('Probabilidades distribuídas automaticamente!');
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!token) {
-      alert('Token de autenticação não encontrado')
+      toast.error('Token de autenticação não encontrado')
       return
     }
 
-    if (!scratchCard.image_url) {
-      alert('Por favor, informe a URL da imagem para a raspadinha')
+    if (!scratchCardImage) {
+      toast.error('Por favor, selecione uma imagem para a raspadinha')
       return
     }
 
-    // Validar se todos os prêmios têm URL de imagem
-    const prizesWithoutImage = prizes.filter(prize => !prize.image_url)
+    // Validar se todos os prêmios têm imagem
+    const prizesWithoutImage = prizeImages.filter(image => !image)
     if (prizesWithoutImage.length > 0) {
-      alert('Por favor, adicione URLs de imagem para todos os prêmios')
+      toast.error('Por favor, adicione imagens para todos os prêmios')
       return
     }
 
     // Validar se a soma das probabilidades não excede 100%
     const totalProbability = prizes.reduce((sum, prize) => sum + prize.probability, 0);
     if (totalProbability > 100) {
-      alert('A soma das probabilidades não pode exceder 100%')
+      toast.error('A soma das probabilidades não pode exceder 100%')
       return
     }
 
     setLoading(true)
     
     try {
-      // Preparar o objeto de dados para envio
-      const requestData = {
-        ...scratchCard,
-        prizes: prizes.map(prize => ({
-          name: prize.name,
-          description: prize.description,
-          type: prize.type,
-          ...(prize.type === 'MONEY' ? { value: prize.value } : {
-            product_name: prize.product_name,
-            redemption_value: prize.redemption_value
-          }),
-          probability: prize.probability,
-          image_url: prize.image_url
-        }))
+      // Preparar FormData para envio
+      const formData = new FormData();
+      
+      // Dados da raspadinha
+      const scratchCardData = {
+        name: scratchCard.name,
+        description: scratchCard.description,
+        price: scratchCard.price,
+        target_rtp: scratchCard.target_rtp,
+        is_active: scratchCard.is_active
       };
       
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/scratchcards/admin/create', {
+      // Dados dos prêmios
+      const prizesData = prizes.map(prize => ({
+        name: prize.name,
+        description: prize.description,
+        type: prize.type,
+        ...(prize.type === 'MONEY' ? { value: prize.value } : {
+          product_name: prize.product_name,
+          redemption_value: prize.redemption_value
+        }),
+        probability: prize.probability,
+        is_active: prize.is_active
+      }));
+      
+      // Adicionar dados JSON
+      formData.append('scratchCard', JSON.stringify(scratchCardData));
+      formData.append('prizes', JSON.stringify(prizesData));
+      
+      // Adicionar imagem da raspadinha
+      if (scratchCardImage) {
+        formData.append('scratchcard_image', scratchCardImage);
+      }
+      
+      // Adicionar imagens dos prêmios
+      prizeImages.forEach((image, index) => {
+        if (image) {
+          formData.append('prize_images', image);
+        }
+      });
+      
+      const response = await fetch(apiUrl('/v1/api/scratchcards/admin/create'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestData)
+        body: formData
       })
       
       if (response.ok) {
-        alert('Raspadinha criada com sucesso!')
+        toast.success('Raspadinha criada com sucesso!')
         router.push('/v2/administrator/scratchs')
       } else {
         const errorData = await response.json()
-        alert(`Erro ao criar raspadinha: ${errorData.message || 'Erro desconhecido'}`)
+        toast.error(`Erro ao criar raspadinha: ${errorData.message || 'Erro desconhecido'}`)
       }
     } catch (error) {
       console.error('Erro ao criar raspadinha:', error)
-      alert('Erro ao criar raspadinha. Tente novamente.')
+      toast.error('Erro ao criar raspadinha. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -197,6 +235,19 @@ export default function CreateScratchCard() {
       currency: 'BRL'
     }).format(value)
   }
+
+  // Handlers para upload de imagens
+  const handleScratchCardImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setScratchCardImage(file);
+  };
+
+  const handlePrizeImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    const newPrizeImages = [...prizeImages];
+    newPrizeImages[index] = file;
+    setPrizeImages(newPrizeImages);
+  };
 
   return (
     <div className={poppins.className}>
@@ -330,16 +381,18 @@ export default function CreateScratchCard() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="image_url" className="text-neutral-300">URL da Imagem da Raspadinha *</Label>
+              <Label htmlFor="scratchcard_image" className="text-neutral-300">Imagem da Raspadinha *</Label>
               <Input
-                id="image_url"
-                type="url"
-                value={scratchCard.image_url}
-                onChange={(e) => setScratchCard({...scratchCard, image_url: e.target.value})}
-                placeholder="https://example.com/images/raspadinha-premium.jpg"
+                id="scratchcard_image"
+                type="file"
+                accept="image/*"
+                onChange={handleScratchCardImageChange}
                 className="bg-neutral-700 border-neutral-600 text-white placeholder:text-neutral-400 focus:border-yellow-500"
                 required
               />
+              {scratchCardImage && (
+                <p className="text-green-400 text-sm">✓ Imagem selecionada: {scratchCardImage.name}</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -491,15 +544,17 @@ export default function CreateScratchCard() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label className="text-neutral-300">URL da Imagem do Prêmio *</Label>
+                  <Label className="text-neutral-300">Imagem do Prêmio *</Label>
                   <Input
-                    type="url"
-                    value={prize.image_url}
-                    onChange={(e) => updatePrize(index, 'image_url', e.target.value)}
-                    placeholder="https://example.com/images/prize-image.jpg"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handlePrizeImageChange(index, e)}
                     className="bg-neutral-700 border-neutral-600 text-white placeholder:text-neutral-400 focus:border-yellow-500"
                     required
                   />
+                  {prizeImages[index] && (
+                    <p className="text-green-400 text-sm">✓ Imagem selecionada: {prizeImages[index]?.name}</p>
+                  )}
                 </div>
               </div>
             ))}

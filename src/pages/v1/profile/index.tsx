@@ -33,6 +33,10 @@ import {
 import Image from 'next/image';
 import DepositModal from '@/components/deposit-modal';
 import { getAppColor, getAppColorText, getAppColorBorder, getAppColorSvg, getAppGradient } from '@/lib/colors';
+import { apiUrl } from '@/lib/api';
+
+
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -120,7 +124,8 @@ export default function ProfilePage() {
   // Função para copiar código de convite
   const copyInviteCode = async (code: string) => {
     try {
-      await navigator.clipboard.writeText(`https://raspa.ae?r=${code}`);
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      await navigator.clipboard.writeText(`${appUrl}?r=${code}`);
       toast.success('Link de convite copiado!');
     } catch (error) {
       toast.error('Erro ao copiar link de convite');
@@ -212,7 +217,7 @@ export default function ProfilePage() {
         random: 'RANDOM'
       };
 
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/withdraw', {
+      const response = await fetch(apiUrl('/v1/api/users/withdraw'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -277,7 +282,7 @@ export default function ProfilePage() {
     setIsLoadingHistory(true);
 
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/financial-history', {
+      const response = await fetch(apiUrl('/v1/api/users/financial-history'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -338,7 +343,7 @@ export default function ProfilePage() {
     setIsLoadingGameHistory(true);
 
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/game-history?limit=10', {
+      const response = await fetch(apiUrl('/v1/api/users/game-history?limit=10'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -373,7 +378,7 @@ export default function ProfilePage() {
     setIsLoadingAffiliates(true);
 
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/invited-users', {
+      const response = await fetch(apiUrl('/v1/api/users/invited-users'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -429,7 +434,7 @@ export default function ProfilePage() {
 
     const fetchProfileData = async () => {
       try {
-        const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/profile', {
+        const response = await fetch(apiUrl('/v1/api/users/profile'), {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -490,7 +495,7 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <h3 className="text-white font-semibold text-lg">
-                    {isLoading ? 'Carregando...' : getFirstName(profileData?.full_name || user?.full_name || '')}
+                    {isLoading ? 'Carregando...' : (profileData?.username || user?.username || '')}
                   </h3>
                   <p className="text-neutral-400 text-sm">
                     {isLoading ? 'Carregando...' : (profileData?.email || user?.email || 'email@exemplo.com')}

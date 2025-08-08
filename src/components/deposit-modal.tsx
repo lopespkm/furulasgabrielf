@@ -6,6 +6,9 @@ import { X, Smartphone, CheckCircle, Copy, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeCanvas } from "qrcode.react";
 import { getAppColor, getAppColorText, getAppColorBorder, getAppColorSvg, getAppGradient } from '@/lib/colors';
+import { apiUrl } from '@/lib/api';
+import { trackDepositInitiated, trackDepositConfirmed } from "@/lib/facebook-pixel";
+
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -51,7 +54,7 @@ function PaymentModal({ isOpen, onClose, paymentData, token }: { isOpen: boolean
         try {
           // Tentar diferentes possíveis localizações do ID
           const paymentId = paymentData.payment?.id || paymentData.id || paymentData.deposit?.id;
-          const response = await fetch(`https://api.voltraspadinhas.com/v1/api/deposits/${paymentId}/status`, {
+          const response = await fetch(apiUrl(`/v1/api/deposits/${paymentId}/status`), {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -64,6 +67,14 @@ function PaymentModal({ isOpen, onClose, paymentData, token }: { isOpen: boolean
           if (response.ok && data.success && data.data.status === 'PAID' && !isPaymentPaid) {
             setIsPaymentPaid(true);
             toast.success('Pagamento aprovado! Seu saldo foi creditado com sucesso.');
+            
+            // Rastrear depósito confirmado no Facebook Pixel
+            try {
+              const depositAmount = parseFloat(paymentData.deposit.amount);
+              await trackDepositConfirmed(depositAmount);
+            } catch (error) {
+              console.error('Erro ao rastrear depósito confirmado:', error);
+            }
             
             // Fecha o modal após 5 segundos
             setTimeout(() => {
@@ -232,7 +243,7 @@ export default function DepositModal({ isOpen, onClose, token }: DepositModalPro
     const fetchSettings = async () => {
       setDepositBannerLoading(true);
       try {
-        const response = await fetch('https://api.voltraspadinhas.com/v1/api/setting');
+        const response = await fetch(apiUrl('/v1/api/setting'));
         const data = await response.json();
         if (response.ok && data.data && data.data[0]?.deposit_banner) {
           setDepositBannerUrl(data.data[0].deposit_banner);
@@ -259,10 +270,12 @@ export default function DepositModal({ isOpen, onClose, token }: DepositModalPro
     return parseFloat(customAmount.replace(',', '.')) || 0;
   };
 
+const gatewayDefault = process.env.NEXT_PUBLIC_GATEWAY_DEFAULT;
+
   const handleGeneratePayment = async () => {
     const amount = parseFloat(customAmount.replace(',', '.'));
-    if (!amount || amount < 1) {
-      toast.error('Por favor, insira um valor válido (mínimo R$ 1,00)');
+    if (!amount || amount < 10) {
+      toast.error('Por favor, insira um valor válido (mínimo R$ 10,00)');
       return;
     }
     if (!token) {
@@ -271,7 +284,7 @@ export default function DepositModal({ isOpen, onClose, token }: DepositModalPro
     }
     setIsGeneratingPayment(true);
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/deposits/create', {
+      const response = await fetch(apiUrl('/v1/api/deposits/create'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -280,7 +293,7 @@ export default function DepositModal({ isOpen, onClose, token }: DepositModalPro
         body: JSON.stringify({
           amount: amount,
           paymentMethod: 'PIX',
-          gateway: 'pixup'
+          gateway: gatewayDefault
         })
       });
       const data = await response.json();
@@ -291,6 +304,13 @@ export default function DepositModal({ isOpen, onClose, token }: DepositModalPro
         setPaymentData(data.data);
         setShowPaymentModal(true);
         toast.success('Pagamento PIX gerado com sucesso!');
+        
+        // Rastrear início do depósito no Facebook Pixel
+        try {
+          await trackDepositInitiated(amount);
+        } catch (error) {
+          console.error('Erro ao rastrear depósito iniciado:', error);
+        }
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao gerar pagamento PIX');
@@ -409,7 +429,7 @@ export default function DepositModal({ isOpen, onClose, token }: DepositModalPro
                   />
                 </div>
                 <p className="text-neutral-500 text-xs sm:text-sm">
-                  Valor mínimo: R$ 1,00
+                  Valor mínimo: R$ 10,00
                 </p>
               </div>
 
@@ -433,7 +453,7 @@ export default function DepositModal({ isOpen, onClose, token }: DepositModalPro
               {/* Generate Payment Button */}
               <Button
                 onClick={handleGeneratePayment}
-                disabled={!customAmount || getCurrentAmount() < 1 || isGeneratingPayment}
+                disabled={!customAmount || getCurrentAmount() < 10 || isGeneratingPayment}
                 className={`${getAppGradient()} w-full text-white font-semibold py-2 sm:py-3 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl border border-neutral-400/20 disabled:border-neutral-600/20 text-sm sm:text-base`}
               >
                 {isGeneratingPayment ? (
@@ -460,4 +480,4 @@ export default function DepositModal({ isOpen, onClose, token }: DepositModalPro
       )}
     </>
   );
-} 
+}

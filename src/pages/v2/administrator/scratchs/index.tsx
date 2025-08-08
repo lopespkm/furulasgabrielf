@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/dialog"
 import { Eye, Trash2, Plus, Gift, DollarSign, Users, TrendingUp, Search, Loader2, Star } from 'lucide-react';
 import { Poppins } from 'next/font/google';
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -129,7 +131,7 @@ export default function ScratchCardsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/scratchcards/admin/all?includeInactive=false', {
+      const response = await fetch(apiUrl('/v1/api/scratchcards/admin/all?includeInactive=false'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -184,7 +186,7 @@ export default function ScratchCardsPage() {
 
     try {
       setDeleting(true);
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/scratchcards/admin/${cardToDelete.id}`, {
+      const response = await fetch(apiUrl(`/v1/api/scratchcards/admin/${cardToDelete.id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -217,7 +219,7 @@ export default function ScratchCardsPage() {
 
     try {
       setFeaturing(true);
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/admin/scratchcards/toggle-featured', {
+      const response = await fetch(apiUrl('/v1/api/admin/scratchcards/toggle-featured'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/table"
 import { Search, ArrowUpRight, Clock, CreditCard, DollarSign, Loader2 } from "lucide-react"
 import { Poppins } from 'next/font/google'
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -120,7 +122,7 @@ export default function DepositsPage() {
         throw new Error('Token de autenticação não encontrado');
       }
       
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/admin/deposits?page=${page}&limit=20`, {
+      const response = await fetch(apiUrl(`/v1/api/admin/deposits?page=${page}&limit=20`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

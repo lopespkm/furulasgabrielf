@@ -53,6 +53,8 @@ import {
 import { Poppins } from 'next/font/google'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner';
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -117,7 +119,7 @@ export default function UserDetailsPage() {
     setError('');
     try {
       const response = await fetch(
-        `https://api.voltraspadinhas.com/v1/api/admin/users/${id}`,
+        apiUrl(`/v1/api/admin/users/${id}`),
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -218,7 +220,7 @@ export default function UserDetailsPage() {
     setCommissionLoading(true);
     setCommissionError('');
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/admin/affiliates/edit-commission', {
+        const response = await fetch(apiUrl('/v1/api/admin/affiliates/edit-commission'), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

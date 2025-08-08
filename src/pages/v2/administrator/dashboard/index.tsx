@@ -19,6 +19,7 @@ import { Poppins } from 'next/font/google'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { apiUrl } from '@/lib/api';
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -73,7 +74,7 @@ export default function Page() {
       if (!token) return;
       
       try {
-        const response = await fetch('https://api.voltraspadinhas.com/v1/api/admin/stats', {
+        const response = await fetch(apiUrl('/v1/api/admin/stats'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

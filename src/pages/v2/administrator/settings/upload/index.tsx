@@ -20,6 +20,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiUrl } from '@/lib/api';
+
 
 const imageFields = [
   { key: 'plataform_logo', label: 'Logo da Plataforma', uploadKey: 'logo' },
@@ -32,7 +34,7 @@ const imageFields = [
 ];
 
 export default function SettingsUploadPage() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -40,21 +42,12 @@ export default function SettingsUploadPage() {
   const [previews, setPreviews] = useState<{ [key: string]: string | null }>({});
   const [files, setFiles] = useState<{ [key: string]: File | null }>({});
 
-  // Verificar se o usuário é administrador
-  useEffect(() => {
-    if (user && !user.is_admin) {
-      toast.error('Acesso negado. Apenas administradores podem acessar esta página.');
-      window.location.href = '/';
-      return;
-    }
-  }, [user]);
-
   useEffect(() => {
     const fetchSettings = async () => {
       setLoading(true);
       setError('');
       try {
-        const response = await fetch('https://api.voltraspadinhas.com/v1/api/setting', {
+        const response = await fetch(apiUrl('/v1/api/setting'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -101,7 +94,7 @@ export default function SettingsUploadPage() {
     try {
       const formData = new FormData();
       formData.append(uploadKey, files[fieldKey]!);
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/setting/upload', {
+      const response = await fetch(apiUrl('/v1/api/setting/upload'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -159,7 +152,7 @@ export default function SettingsUploadPage() {
             </div>
           </div>
 
-          {loading || !user?.is_admin ? (
+          {loading ? (
             <Card className="bg-neutral-800 border-neutral-700">
               <div className="flex items-center justify-center h-64">
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />

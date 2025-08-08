@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { X, Eye, EyeOff, Mail, Lock, User, Phone, CreditCard, Loader2 } from 'lucide-react';
+import { X, Eye, EyeOff, Mail, Lock, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppColor, getAppGradient } from '@/lib/colors';
+import { apiUrl } from '@/lib/api';
+import { trackUserRegistration } from '@/lib/facebook-pixel';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,13 +19,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
   const { login } = useAuth();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: '',
-    name: '',
-    phone: '',
     cpf: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -52,24 +51,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
-    if (name === 'phone') {
-      // Remove caracteres não numéricos
-      const numericValue = value.replace(/\D/g, '');
-      
-      // Aplica a máscara visual (XX) XXXXX-XXXX
-      let formattedValue = numericValue;
-      if (numericValue.length > 0) {
-        formattedValue = numericValue.replace(/^(\d{2})(\d)/g, '($1) $2');
-      }
-      if (numericValue.length > 6) {
-        formattedValue = formattedValue.replace(/^(\(\d{2}\)\s)(\d{5})(\d)/g, '$1$2-$3');
-      }
-      
-      setFormData({
-        ...formData,
-        [name]: formattedValue
-      });
-    } else if (name === 'cpf') {
+    if (name === 'cpf') {
       // Remove caracteres não numéricos
       const numericValue = value.replace(/\D/g, '');
       
@@ -115,7 +97,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
   };
 
   const handleLogin = async () => {
-    const response = await fetch('https://api.voltraspadinhas.com/v1/api/auth/login', {
+    const response = await fetch(apiUrl('/v1/api/auth/login'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -150,31 +132,24 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
   };
 
   const handleRegister = async () => {
-    if (formData.password !== formData.confirmPassword) {
-      throw new Error('As senhas não coincidem');
-    }
-
     // Capturar código de convite da URL se presente
     const urlParams = new URLSearchParams(window.location.search);
     const inviteCode = urlParams.get('r');
     
-    // Remove formatação do telefone e CPF antes de enviar
-    const phoneClean = formData.phone.replace(/\D/g, '');
+    // Remove formatação do CPF antes de enviar
     const cpfClean = formData.cpf.replace(/\D/g, '');
 
     const registerData: any = {
       email: formData.email,
-      phone: phoneClean,
       cpf: cpfClean,
       password: formData.password,
-      full_name: formData.name,
     };
 
     if (inviteCode) {
       registerData.invite_code = inviteCode;
     }
 
-    const response = await fetch('https://api.voltraspadinhas.com/v1/api/auth/register', {
+    const response = await fetch(apiUrl('/v1/api/auth/register'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -192,6 +167,18 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
       // Usar AuthContext para fazer login
       login(data.data.user, data.data.token);
       
+      // Rastrear registro no Facebook Pixel com email e CPF
+      try {
+        await trackUserRegistration(
+          undefined, // name não é mais usado
+          formData.email, // capturar email
+          cpfClean, // capturar CPF limpo
+          inviteCode // código de convite se presente
+        );
+      } catch (pixelError) {
+        console.log('Erro ao rastrear registro no Facebook Pixel:', pixelError);
+      }
+      
       // Mostrar toast de sucesso
       toast.success('Conta criada com sucesso!');
       
@@ -199,6 +186,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
       if (onAuthSuccess) {
         onAuthSuccess(data.data.user, data.data.token);
       }
+
       
       // Fechar modal
       onClose();
@@ -268,45 +256,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
               </button>
             </div>
 
-
-
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4 flex-1 flex flex-col justify-center">
               {activeTab === 'register' && (
                 <>
-                  {/* Name Field */}
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" size={18} />
-                    <input
-                      type="text"
-                      name="name"
-                      placeholder="Nome completo"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-lg text-white placeholder-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-500/20 transition-all duration-200 outline-none"
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-
-
-
-                  {/* Phone Field */}
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" size={18} />
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="Telefone (ex: (11) 98765-4321)"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      maxLength={15}
-                      className="w-full pl-10 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-lg text-white placeholder-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-500/20 transition-all duration-200 outline-none"
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-
                   {/* CPF Field */}
                   <div className="relative">
                     <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" size={18} />
@@ -322,8 +275,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                       disabled={isLoading}
                     />
                   </div>
-
-
                 </>
               )}
 
@@ -364,31 +315,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-
-              {/* Confirm Password Field (only for register) */}
-              {activeTab === 'register' && (
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" size={18} />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    placeholder="Confirmar senha"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-12 py-3 bg-neutral-800/50 border border-neutral-700 rounded-lg text-white placeholder-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-500/20 transition-all duration-200 outline-none"
-                    required
-                    disabled={isLoading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-white transition-colors"
-                    disabled={isLoading}
-                  >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              )}
 
               {/* Remember me / Forgot password */}
               {activeTab === 'login' && (

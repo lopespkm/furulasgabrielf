@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import DepositModal from "@/components/deposit-modal";
 import { getAppColor, getAppColorText } from "@/lib/colors";
+import { apiUrl } from '@/lib/api';
+
 
 export default function Header() {
     const { user, login, logout, updateUser, token } = useAuth();
@@ -31,7 +33,7 @@ export default function Header() {
         const fetchLogo = async () => {
             setLogoLoading(true);
             try {
-                const response = await fetch('https://api.voltraspadinhas.com/v1/api/setting');
+                const response = await fetch(apiUrl('/v1/api/setting'));
                 const data = await response.json();
                 if (response.ok && data.data && data.data[0]?.plataform_logo) {
                     setLogoUrl(data.data[0].plataform_logo);
@@ -52,7 +54,7 @@ export default function Header() {
         if (!token) return;
         
         try {
-            const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/profile', {
+            const response = await fetch(apiUrl('/v1/api/users/profile'), {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -135,7 +137,7 @@ export default function Header() {
         setIsGeneratingPayment(true);
         
         try {
-            const response = await fetch('https://api.voltraspadinhas.com/v1/api/deposits/create', {
+            const response = await fetch(apiUrl('/v1/api/deposits/create'), {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

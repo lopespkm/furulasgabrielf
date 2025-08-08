@@ -12,6 +12,8 @@ import { useWindowSize } from 'react-use';
 import ScratchCard from 'react-scratchcard-v4';
 import Winners from '@/components/winners';
 import { toast } from 'sonner';
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -167,7 +169,7 @@ const ScratchCardPage = () => {
   const fixImageUrl = (url: string) => {
     if (!url) return '';
     return url
-      .replace('raspa.ae', 'api.voltraspadinhas.com')
+      .replace('raspa.ae', 'api.raspapixoficial.com')
       .replace('/uploads/scratchcards/', '/uploads/')
       .replace('/uploads/prizes/', '/uploads/');
   };
@@ -178,7 +180,7 @@ const ScratchCardPage = () => {
     
     try {
       setLoading(true);
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/scratchcards/${id}`);
+      const response = await fetch(apiUrl(`/v1/api/scratchcards/${id}`));
       const data: ApiResponse = await response.json();
       
       if (data.success) {
@@ -211,6 +213,12 @@ const ScratchCardPage = () => {
       return [];
     }
 
+    // Verificar se o resultado é válido
+    if (!result || typeof result !== 'object') {
+      console.error('Resultado inválido:', result);
+      return [];
+    }
+
     // Usar prêmios da API para gerar itens
     // Expandir os tipos visuais para acomodar mais prêmios
     const visualTypes = ['coin', 'gem', 'star', 'crown', 'heart', 'diamond', 'trophy', 'medal', 'gift', 'ticket', 'chest'];
@@ -224,7 +232,7 @@ const ScratchCardPage = () => {
 
     const items: ScratchItem[] = [];
     
-    if (result.isWinner && result.prize) {
+    if (result.isWinner && result.prize && result.prize.type) {
       // Encontrar o tipo correspondente ao prêmio ganho
       const winningPrize = scratchCardData.prizes.find(p => p.id === result.prize?.id);
       const winningTypeIndex = winningPrize ? scratchCardData.prizes.findIndex(p => p.id === winningPrize.id) : 0;
@@ -235,8 +243,8 @@ const ScratchCardPage = () => {
         items.push({
           id: i,
           type: winningType.type,
-          value: parseFloat(result.prize.value || result.prize.redemption_value || '0'),
-          icon: fixImageUrl(result.prize.image_url) || winningType.icon
+          value: parseFloat(result.prize?.value || result.prize?.redemption_value || '0'),
+          icon: fixImageUrl(result.prize?.image_url || '') || winningType.icon
         });
       }
       
@@ -271,7 +279,7 @@ const ScratchCardPage = () => {
           icon: selectedType.icon
         });
       }
-    } else {
+    } else if (!result.isWinner || !result.prize) {
       // Raspadinha perdedora - garantir que NUNCA há 3 iguais
       const availableTypes = [...itemTypes];
       
@@ -330,10 +338,21 @@ const ScratchCardPage = () => {
         }
       }
       
+      console.log('Padrão criado:', pattern.length, 'elementos');
+      
       // Preencher o restante com tipos fictícios
       while (pattern.length < 9) {
         const dummyIndex: number = (pattern.length - availableTypes.length * 2) % dummyTypes.length;
         pattern.push(dummyTypes[dummyIndex]);
+      }
+      
+      // Garantir que temos exatamente 9 elementos
+      if (pattern.length !== 9) {
+        console.warn('Padrão não tem 9 elementos, ajustando...');
+        while (pattern.length < 9) {
+          pattern.push(dummyTypes[0]);
+        }
+        pattern.splice(9); // Remover elementos extras se houver
       }
       
       // Embaralhar o padrão
@@ -342,12 +361,22 @@ const ScratchCardPage = () => {
       // Criar os itens baseados no padrão
       for (let i = 0; i < 9; i++) {
         const typeData = shuffledPattern[i];
-        items.push({
-          id: i,
-          type: typeData.type,
-          value: typeData.baseValue,
-          icon: typeData.icon
-        });
+        if (typeData) {
+          items.push({
+            id: i,
+            type: typeData.type,
+            value: typeData.baseValue,
+            icon: typeData.icon
+          });
+        } else {
+          // Fallback caso typeData seja undefined
+          items.push({
+            id: i,
+            type: 'coin',
+            value: 0,
+            icon: '/50_money.webp'
+          });
+        }
       }
     }
 
@@ -383,7 +412,7 @@ const ScratchCardPage = () => {
     
     try {
       setPlayingGame(true);
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/scratchcards/play', {
+      const response = await fetch(apiUrl('/v1/api/scratchcards/play'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -414,7 +443,7 @@ const ScratchCardPage = () => {
     if (!token) return;
     
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/profile', {
+      const response = await fetch(apiUrl('/v1/api/users/profile'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -448,7 +477,9 @@ const ScratchCardPage = () => {
     // Jogar na API
     const { result, errorMessage } = await playGame(token || '');
     
-    if (result) {
+    console.log('Resultado do jogo:', result); // Debug
+    
+    if (result && typeof result === 'object') {
       setGameResult(result);
       const items = generateScratchItems(result);
       setScratchItems(items);
@@ -504,7 +535,9 @@ const ScratchCardPage = () => {
     // Jogar na API
     const { result, errorMessage } = await playGame(token || '');
     
-    if (result) {
+    console.log('Resultado do jogo (play again):', result); // Debug
+    
+    if (result && typeof result === 'object') {
       setGameResult(result);
       const items = generateScratchItems(result);
       setScratchItems(items);
@@ -790,11 +823,18 @@ const ScratchCardPage = () => {
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
             {scratchCardData?.prizes && scratchCardData.prizes.length > 0 ? (
-              scratchCardData.prizes.slice(0, 17).map((prize, index) => (
+              scratchCardData.prizes
+                .sort((a, b) => {
+                  const valueA = parseFloat(a.type === 'MONEY' ? a.value || '0' : a.redemption_value || '0');
+                  const valueB = parseFloat(b.type === 'MONEY' ? b.value || '0' : b.redemption_value || '0');
+                  return valueA - valueB;
+                })
+                .slice(0, 20)
+                .map((prize, index) => (
                 <div key={prize.id} className="flex-shrink-0 w-38 xl:w-auto">
                   <div className="flex flex-col border-2 border-yellow-500/30 p-3 rounded-lg bg-gradient-to-t from-yellow-500/17 from-[0%] to-[35%] to-yellow-400/10 cursor-pointer aspect-square hover:scale-105 transition-all duration-300">
                   <Image
-                    src={fixImageUrl(prize.image_url) || "/50_money.webp"}
+                    src={fixImageUrl(prize.image_url)}
                       alt={prize.type === 'MONEY' ? `${parseFloat(prize.value || '0').toFixed(0)} Reais` : prize.name}
                       width={80}
                       height={80}
@@ -805,7 +845,7 @@ const ScratchCardPage = () => {
                     }}
                   />
                     <h3 className="text-sm font-semibold mb-3 overflow-hidden text-ellipsis text-nowrap w-30 text-white">
-                      {prize.type === 'MONEY' ? `${parseFloat(prize.value || '0').toFixed(0)} Reais` : prize.name}
+                      {prize.type === 'MONEY' ? prize.name : prize.product_name}
                     </h3>
                     <div className="px-1.5 py-1 bg-white text-neutral-900 rounded-sm text-sm font-semibold self-start">
                       R$ {prize.type === 'MONEY' ? parseFloat(prize.value || '0').toFixed(2).replace('.', ',') : parseFloat(prize.redemption_value || '0').toFixed(2).replace('.', ',')}

@@ -40,6 +40,8 @@ import { Poppins } from 'next/font/google';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -114,7 +116,7 @@ export default function GGRPage() {
       if (!token) return;
       
       try {
-        const response = await fetch('https://api.voltraspadinhas.com/v1/api/license/current', {
+        const response = await fetch(apiUrl('/v1/api/license/current'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -140,7 +142,7 @@ export default function GGRPage() {
       
       try {
         setUsageLoading(true);
-        const response = await fetch('https://api.voltraspadinhas.com/v1/api/license/usage', {
+        const response = await fetch(apiUrl('/v1/api/license/usage'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -175,7 +177,7 @@ export default function GGRPage() {
       setModalError('');
       setModalSuccess('');
       
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/license/credits', {
+      const response = await fetch(apiUrl('/v1/api/license/credits'), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -193,7 +195,7 @@ export default function GGRPage() {
       }
 
       // Atualizar os dados da licença
-      const licenseResponse = await fetch('https://api.voltraspadinhas.com/v1/api/license/current', {
+      const licenseResponse = await fetch(apiUrl('/v1/api/license/current'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -224,7 +226,7 @@ export default function GGRPage() {
       setModalError('');
       setModalSuccess('');
       
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/license/earnings', {
+      const response = await fetch(apiUrl('/v1/api/license/earnings'), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -242,7 +244,7 @@ export default function GGRPage() {
       }
 
       // Atualizar os dados da licença
-      const licenseResponse = await fetch('https://api.voltraspadinhas.com/v1/api/license/current', {
+      const licenseResponse = await fetch(apiUrl('/v1/api/license/current'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

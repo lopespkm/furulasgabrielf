@@ -29,6 +29,9 @@ import {
 } from "@/components/ui/table"
 import { Search, ArrowDownLeft, Clock, CreditCard, DollarSign, Loader2, Check, X, Eye } from "lucide-react"
 import { Poppins } from 'next/font/google'
+import { toast } from 'sonner';
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -119,7 +122,7 @@ export default function WithdrawalsPage() {
         throw new Error('Token de autenticação não encontrado');
       }
       
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/admin/withdrawals?page=${page}&limit=20`, {
+      const response = await fetch(apiUrl(`/v1/api/admin/withdrawals?page=${page}&limit=20`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -230,12 +233,13 @@ export default function WithdrawalsPage() {
         throw new Error('Token de autenticação não encontrado');
       }
 
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/admin/withdrawals/${withdrawalId}/approve`, {
-        method: 'POST',
+      const response = await fetch(apiUrl(`/v1/api/admin/withdrawals/${withdrawalId}/approve`), {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({})
       });
 
       if (!response.ok) {
@@ -244,9 +248,10 @@ export default function WithdrawalsPage() {
 
       // Recarregar a lista após aprovação
       await fetchWithdrawals(pagination.page);
+      toast.success('Saque aprovado com sucesso!');
     } catch (err) {
       console.error('Erro ao aprovar saque:', err);
-      alert('Erro ao aprovar saque. Tente novamente.');
+      toast.error('Erro ao aprovar saque. Tente novamente.');
     }
   };
 
@@ -257,12 +262,13 @@ export default function WithdrawalsPage() {
         throw new Error('Token de autenticação não encontrado');
       }
 
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/admin/withdrawals/${withdrawalId}/reject`, {
+      const response = await fetch(apiUrl(`/v1/api/admin/withdrawals/${withdrawalId}/reject`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({})
       });
 
       if (!response.ok) {
@@ -271,9 +277,10 @@ export default function WithdrawalsPage() {
 
       // Recarregar a lista após rejeição
       await fetchWithdrawals(pagination.page);
+      toast.success('Saque rejeitado com sucesso!');
     } catch (err) {
       console.error('Erro ao negar saque:', err);
-      alert('Erro ao negar saque. Tente novamente.');
+      toast.error('Erro ao negar saque. Tente novamente.');
     }
   };
 

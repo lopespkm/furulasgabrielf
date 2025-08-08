@@ -26,6 +26,8 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["100", "200", "300","400","500", "600", "700"],
 });
+import { apiUrl } from '@/lib/api';
+
 
 interface QuickAmountProps {
   amount: number;
@@ -229,7 +231,7 @@ export default function DepositPage() {
     setIsGeneratingPayment(true);
     
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/deposits/create', {
+      const response = await fetch(apiUrl('/v1/api/deposits/create'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

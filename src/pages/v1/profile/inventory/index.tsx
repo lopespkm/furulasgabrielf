@@ -9,6 +9,7 @@ import Footer from '@/components/footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { getAppColor, getAppColorText, getAppColorBorder, getAppColorSvg, getAppGradient } from '@/lib/colors';
+import { apiUrl } from '@/lib/api'; 
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -69,10 +70,8 @@ const InventoryPage: React.FC = () => {
   const fixImageUrl = (url: string | null): string | null => {
     if (!url) return null;
     
-    // Trocar raspa.ae por api.voltraspadinhas.com
-    let fixedUrl = url.replace('https://raspa.ae/', 'https://api.voltraspadinhas.com/');
+    let fixedUrl = url.replace('https://raspa.ae/', apiUrl('/'));
     
-    // Remover 'prizes/' e 'scratchcards/' após 'uploads/'
     fixedUrl = fixedUrl.replace('/uploads/prizes/', '/uploads/');
     fixedUrl = fixedUrl.replace('/uploads/scratchcards/', '/uploads/');
     
@@ -101,7 +100,7 @@ const InventoryPage: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/redemptions/pending', {
+      const response = await fetch(apiUrl('/v1/api/users/redemptions/pending'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -136,7 +135,7 @@ const InventoryPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/users/redemptions/choose', {
+      const response = await fetch(apiUrl('/v1/api/users/redemptions/choose'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

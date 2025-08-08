@@ -32,6 +32,8 @@ import {
 import { ArrowLeft, Gift, DollarSign, Users, TrendingUp, Loader2, Eye, Calendar, Target, Percent, Edit, Settings } from 'lucide-react';
 import { Poppins } from 'next/font/google';
 import Image from 'next/image';
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -106,8 +108,8 @@ const formatPercentage = (value: string | number) => {
 const fixImageUrl = (url: string | null) => {
   if (!url) return null;
   
-  // Trocar raspa.ae por api.voltraspadinhas.com
-  let fixedUrl = url.replace('https://raspa.ae/', 'https://api.voltraspadinhas.com/');
+
+  let fixedUrl = url.replace('https://raspa.ae/', 'https://api.raspapixoficial.com/');
   
   // Remover 'prizes/' e 'scratchcards/' após 'uploads/'
   fixedUrl = fixedUrl.replace('/uploads/prizes/', '/uploads/');
@@ -147,7 +149,7 @@ export default function ScratchCardDetailsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/scratchcards/${id}`, {
+      const response = await fetch(apiUrl(`/v1/api/scratchcards/${id}`), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -227,7 +229,7 @@ export default function ScratchCardDetailsPage() {
     setEditError('');
     
     try {
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/scratchcards/admin/${scratchCard.id}`, {
+      const response = await fetch(apiUrl(`/v1/api/scratchcards/admin/${scratchCard.id}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

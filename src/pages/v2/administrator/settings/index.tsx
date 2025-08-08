@@ -20,6 +20,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiUrl } from '@/lib/api';
+
 
 export default function SettingsPage() {
   const { token } = useAuth();
@@ -34,7 +36,7 @@ export default function SettingsPage() {
       setLoading(true);
       setError('');
       try {
-        const response = await fetch('https://api.voltraspadinhas.com/v1/api/setting', {
+        const response = await fetch(apiUrl('/v1/api/setting'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -59,7 +61,7 @@ export default function SettingsPage() {
     setSaving(true);
     setError('');
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/setting/update', {
+      const response = await fetch(apiUrl('/v1/api/setting/update'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

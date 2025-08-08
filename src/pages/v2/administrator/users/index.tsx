@@ -38,6 +38,8 @@ import {
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from 'sonner';
+import { apiUrl } from '@/lib/api';
+
 
 const poppins = Poppins({ 
   subsets: ["latin"],
@@ -132,7 +134,7 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://api.voltraspadinhas.com/v1/api/admin/users?page=${page}&limit=20&search=${encodeURIComponent(search)}`,
+        apiUrl(`/v1/api/admin/users?page=${page}&limit=20&search=${encodeURIComponent(search)}`),
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -200,7 +202,7 @@ export default function UsersPage() {
     
     try {
       const response = await fetch(
-        `https://api.voltraspadinhas.com/v1/api/admin/users/${userId}/toggle-status`,
+        apiUrl(`/v1/api/admin/users/${userId}/toggle-status`),
         {
           method: 'PATCH',
           headers: {
@@ -235,7 +237,7 @@ export default function UsersPage() {
     setDetailsError('');
     try {
       const response = await fetch(
-        `https://api.voltraspadinhas.com/v1/api/admin/users/${userId}`,
+        apiUrl(`/v1/api/admin/users/${userId}`),
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -298,7 +300,7 @@ export default function UsersPage() {
     
     try {
       const response = await fetch(
-        `https://api.voltraspadinhas.com/v1/api/admin/users/${editingUser.id}`,
+        apiUrl(`/v1/api/admin/users/${editingUser.id}`),
         {
           method: 'PUT',
           headers: {
@@ -357,7 +359,7 @@ export default function UsersPage() {
     setAdjustLoading(true);
     setAdjustError('');
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/admin/users/adjust-balance', {
+      const response = await fetch(apiUrl('/v1/api/admin/users/adjust-balance'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -391,7 +393,7 @@ export default function UsersPage() {
     setInvitedLoading(true);
     setInvitedError('');
     try {
-      const response = await fetch(`https://api.voltraspadinhas.com/v1/api/admin/affiliates/${user.id}/invited-users`, {
+      const response = await fetch(apiUrl(`/v1/api/admin/affiliates/${user.id}/invited-users`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -429,7 +431,7 @@ export default function UsersPage() {
     setCommissionLoading(true);
     setCommissionError('');
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/admin/affiliates/edit-commission', {
+      const response = await fetch(apiUrl('/v1/api/admin/affiliates/edit-commission'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -460,7 +462,7 @@ export default function UsersPage() {
     
     setInfluencerLoading(userId);
     try {
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/admin/affiliates/toggle-influencer', {
+      const response = await fetch(apiUrl('/v1/api/admin/affiliates/toggle-influencer'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

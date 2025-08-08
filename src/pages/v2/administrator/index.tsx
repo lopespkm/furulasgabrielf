@@ -19,6 +19,8 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["100", "200", "300","400","500", "600", "700"],
 });
+import { apiUrl } from '@/lib/api';
+
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function AdminLoginPage() {
 
     try {
       // Fazer chamada para a API de login
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/auth/login', {
+      const response = await fetch(apiUrl('/v1/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,6 +6,7 @@ import Footer from "@/components/footer";
 import { useRouter } from "next/router";
 import Winners from "@/components/winners";
 import { getAppColor, getAppGradient, getAppColorText, getAppColorSvg, getAppColorBorder } from '@/lib/colors';
+import { apiUrl } from '@/lib/api';
 
 
 const poppins = Poppins({ 
@@ -112,7 +113,7 @@ export default function Home() {
   const fixImageUrl = (url: string) => {
     if (!url) return '';
     return url
-      .replace('raspa.ae', 'api.voltraspadinhas.com')
+      .replace('raspa.ae', 'api.raspapixoficial.com')
       .replace('/uploads/scratchcards/', '/uploads/')
       .replace('/uploads/prizes/', '/uploads/');
   };
@@ -121,7 +122,7 @@ export default function Home() {
   const fetchScratchCards = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://api.voltraspadinhas.com/v1/api/scratchcards');
+      const response = await fetch(apiUrl('/v1/api/scratchcards'));
       const data: ApiResponse = await response.json();
       
       if (data.success) {
@@ -185,7 +186,7 @@ export default function Home() {
     const fetchBanners = async () => {
       setBannersLoading(true);
       try {
-        const response = await fetch('https://api.voltraspadinhas.com/v1/api/setting');
+        const response = await fetch(apiUrl('/v1/api/setting'));
         const data = await response.json();
         if (response.ok && data.data && data.data[0]) {
           const s = data.data[0];
@@ -296,12 +297,12 @@ export default function Home() {
                 };
                 
                 return (
-                  <div key={card.id} className={`bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl border ${getAppColorBorder()} shadow-lg hover:shadow-xl transition-all duration-300 pt-6 sm:pt-8`}>
-                    <div className="relative -mt-12 sm:-mt-15">
+                  <div key={card.id} className={`bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl border ${getAppColorBorder()} shadow-lg hover:shadow-xl transition-all duration-300 mb-4`}>
+                    <div className="relative">
                       <Image
                         src={fixImageUrl(card.image_url) || '/scratchs/web.webp'}
                         alt={card.name}
-                        width={300}
+                        width={150}
                         height={200}
                         className="w-full h-auto object-cover rounded-t-xl"
                         onError={(e) => {
@@ -317,8 +318,8 @@ export default function Home() {
                       <h3 className="text-white font-semibold text-base sm:text-lg mb-1 truncate" title={card.name}>
                         {card.name}
                       </h3>
-                      <p className="text-neutral-400 text-sm mb-3 sm:mb-4 truncate" title={cardType === 'Produtos' ? card.description : maxPrize}>
-                        {cardType === 'Produtos' ? card.description : maxPrize}
+                      <p className="text-neutral-400 text-sm mb-3 sm:mb-4 truncate" title={card.description}>
+                        {card.description}
                       </p>
                       <div className="flex justify-between items-center">
                         <span className="text-green-400 font-bold text-base sm:text-lg">
@@ -384,12 +385,12 @@ export default function Home() {
         </div>
         
         {/* Scratch Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-12">
           {loading ? (
             // Loading skeleton
             Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl border border-neutral-700/50 shadow-lg pt-6 sm:pt-8 animate-pulse">
-                <div className="relative -mt-12 sm:-mt-15">
+              <div key={index} className="bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl border border-neutral-700/50 shadow-lg animate-pulse mb-4">
+                <div className="relative">
                   <div className="w-full h-48 bg-neutral-700 rounded-t-xl"></div>
                 </div>
                 <div className="p-4 sm:p-5">
@@ -433,12 +434,12 @@ export default function Home() {
               };
               
               return (
-                <div key={card.id} className="bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl border border-neutral-700/50 shadow-lg hover:shadow-xl transition-all duration-300 pt-6 sm:pt-8">
-                  <div className="relative -mt-12 sm:-mt-15">
+                <div key={card.id} className="bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl border border-neutral-700/50 shadow-lg hover:shadow-xl transition-all duration-300 mb-4">
+                  <div className="relative">
                     <Image
                       src={fixImageUrl(card.image_url) || '/scratchs/sonho.webp'}
                       alt={card.name}
-                      width={300}
+                      width={150}
                       height={200}
                       className="w-full h-auto object-cover rounded-t-xl"
                       onError={(e) => {
@@ -454,8 +455,8 @@ export default function Home() {
                     <h3 className="text-white font-semibold text-base sm:text-lg mb-1 truncate" title={card.name}>
                       {card.name}
                     </h3>
-                    <p className="text-neutral-400 text-sm mb-3 sm:mb-4 truncate" title={cardType === 'Produtos' ? card.description : maxPrize}>
-                      {cardType === 'Produtos' ? card.description : maxPrize}
+                    <p className="text-neutral-400 text-sm mb-3 sm:mb-4 truncate" title={card.description}>
+                      {card.description}
                     </p>
                     <div className="flex justify-between items-center">
                       <span className="text-green-400 font-bold text-base sm:text-lg">
