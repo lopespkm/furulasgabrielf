@@ -6,7 +6,7 @@ import Header from '@/components/header';
 import Footer from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Lock, Loader2, Play, RotateCcw } from 'lucide-react';
+import { Lock, Loader2, Play, RotateCcw } from 'lucide-react';
 import Confetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
 import Winners from '@/components/winners';
@@ -18,7 +18,7 @@ const poppins = Poppins({
   weight: ["100", "200", "300","400","500", "600", "700"],
 });
 
-// Interfaces para a API (mantidas iguais)
+// Interfaces para a API
 interface Prize {
   id: string;
   scratchCardId: string;
@@ -133,7 +133,7 @@ const RouletteBoxPage = () => {
   const isAuthenticated = !!user;
   const { width, height } = useWindowSize();
 
-  // Estados da API (mantidos iguais)
+  // Estados da API
   const [scratchCardData, setScratchCardData] = useState<ScratchCardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -153,7 +153,7 @@ const RouletteBoxPage = () => {
   const [spinDuration, setSpinDuration] = useState(0);
   const [finalRotation, setFinalRotation] = useState(0);
 
-  // Função para corrigir URLs das imagens (mantida igual)
+  // Função para corrigir URLs das imagens
   const fixImageUrl = (url: string) => {
     if (!url) return '';
     return url
@@ -162,7 +162,7 @@ const RouletteBoxPage = () => {
       .replace('/uploads/prizes/', '/uploads/');
   };
 
-  // Função para buscar dados da raspadinha (mantida igual)
+  // Função para buscar dados da raspadinha
   const fetchScratchCardData = async () => {
     if (!id) return;
     
@@ -182,10 +182,6 @@ const RouletteBoxPage = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBackClick = () => {
-    router.push('/');
   };
 
   // Buscar dados quando o ID estiver disponível
@@ -237,7 +233,7 @@ const RouletteBoxPage = () => {
     return items.sort(() => Math.random() - 0.5);
   };
 
-  // Função para jogar na API (mantida igual)
+  // Função para jogar na API
   const playGame = async (authToken: string): Promise<{ result: GameResult | null, errorMessage?: string }> => {
     if (!id || !authToken) return { result: null, errorMessage: "Dados de autenticação ausentes." };
     
@@ -269,7 +265,7 @@ const RouletteBoxPage = () => {
     }
   };
 
-  // Função para atualizar saldos do usuário (mantida igual)
+  // Função para atualizar saldos do usuário
   const refreshUserBalance = async () => {
     if (!token) return;
     
@@ -519,10 +515,10 @@ const RouletteBoxPage = () => {
               {gameState === 'spinning' && (
                 <div className="text-center mb-4">
                   <p className="text-white font-semibold text-sm sm:text-base mb-2">
-                    🎲 A roleta está girando...
+                    A roleta está girando...
                   </p>
                   <p className="text-yellow-400 text-xs sm:text-sm">
-                    🎯 Aguarde o resultado!
+                    Aguarde o resultado!
                   </p>
                 </div>
               )}
@@ -575,7 +571,7 @@ const RouletteBoxPage = () => {
                   {hasWon ? (
                     <div>
                       <h3 className="text-green-400 font-bold text-lg sm:text-xl mb-2">
-                        🎉 Parabéns! Você ganhou!
+                        Parabéns! Você ganhou!
                       </h3>
                       {gameResult?.prize?.type === 'PRODUCT' ? (
                         <p className="text-white font-semibold text-base sm:text-lg">
@@ -593,7 +589,7 @@ const RouletteBoxPage = () => {
                   ) : (
                     <div>
                       <h3 className="text-yellow-400 font-bold text-lg sm:text-xl mb-2">
-                        😔 Ops! Não foi dessa vez!
+                        Ops! Não foi dessa vez!
                       </h3>
                       <p className="text-neutral-400 text-sm">
                         Continue tentando, a sorte pode mudar!
@@ -647,7 +643,7 @@ const RouletteBoxPage = () => {
                   
                   return (
                     <div key={prize.id} className="flex-shrink-0 w-38 xl:w-auto">
-                      <div className={`flex flex-col border-2 p-3 rounded-lg bg-gradient-to-t cursor-pointer aspect-square hover:scale-105 transition-all duration-300 ${getRarityColor(rarity)}`}>
+                      <div className={`relative flex flex-col border-2 p-3 rounded-lg bg-gradient-to-t cursor-pointer aspect-square hover:scale-105 transition-all duration-300 ${getRarityColor(rarity)}`}>
                         <Image
                           src={fixImageUrl(prize.image_url)}
                           alt={prize.type === 'MONEY' ? `${parseFloat(prize.value || '0').toFixed(0)} Reais` : prize.name}
@@ -663,4 +659,57 @@ const RouletteBoxPage = () => {
                           {prize.type === 'MONEY' ? prize.name : prize.product_name}
                         </h3>
                         <div className="px-1.5 py-1 bg-white text-neutral-900 rounded-sm text-sm font-semibold self-start">
-                          R$ {prize.type === 'MONEY' ? parseFloat(prize.value || '0').toFixed(2).replace('.', ',') : parseFloat(prize.redemption_value
+                          R$ {prize.type === 'MONEY' ? parseFloat(prize.value || '0').toFixed(2).replace('.', ',') : parseFloat(prize.redemption_value || '0').toFixed(2).replace('.', ',')}
+                        </div>
+                        
+                        {/* Indicador de raridade */}
+                        <div className="absolute top-1 right-1">
+                          <div className={`w-3 h-3 rounded-full ${
+                            rarity === 'legendary' ? 'bg-yellow-400' :
+                            rarity === 'epic' ? 'bg-purple-400' :
+                            rarity === 'rare' ? 'bg-blue-400' :
+                            'bg-gray-400'
+                          }`}></div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+            ) : (
+              <div className="col-span-full text-center py-8">
+                <p className="text-neutral-400 text-sm">Nenhum prêmio disponível</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Legenda de raridades */}
+          <div className="mt-6 bg-neutral-800 rounded-lg p-4 border border-neutral-700">
+            <h3 className="text-white font-semibold text-sm mb-3">Legendas de Raridade</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-gray-400"></div>
+                <span className="text-neutral-300 text-xs">Comum</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-blue-400"></div>
+                <span className="text-neutral-300 text-xs">Raro</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-purple-400"></div>
+                <span className="text-neutral-300 text-xs">Épico</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-yellow-400"></div>
+                <span className="text-neutral-300 text-xs">Lendário</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default RouletteBoxPage;
