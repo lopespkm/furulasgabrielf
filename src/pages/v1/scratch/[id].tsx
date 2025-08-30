@@ -6,21 +6,19 @@ import Header from '@/components/header';
 import Footer from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Lock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Lock, Loader2, Play, RotateCcw } from 'lucide-react';
 import Confetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
-import ScratchCard from 'react-scratchcard-v4';
 import Winners from '@/components/winners';
 import { toast } from 'sonner';
 import { apiUrl } from '@/lib/api';
-
 
 const poppins = Poppins({ 
   subsets: ["latin"],
   weight: ["100", "200", "300","400","500", "600", "700"],
 });
 
-// Interfaces para a API
+// Interfaces para a API (mantidas iguais)
 interface Prize {
   id: string;
   scratchCardId: string;
@@ -61,7 +59,6 @@ interface ApiResponse {
   data: ScratchCardData;
 }
 
-// Interfaces para o jogo
 interface GamePrize {
   id: string;
   name: string;
@@ -115,57 +112,48 @@ interface PlayGameResponse {
   };
 }
 
-// Tipos para os itens da raspadinha
-interface ScratchItem {
-  id: number;
-  type: 'coin' | 'gem' | 'star' | 'crown' | 'heart' | 'diamond' | 'trophy' | 'medal' | 'gift' | 'ticket' | 'chest';
-  value: number;
-  icon: string;
-  name?: string;
-  image?: string;
-  isWin?: boolean;
+// Item da roleta
+interface RouletteItem {
+  id: string;
+  name: string;
+  image: string;
+  value: string;
+  type: string;
+  isWinning?: boolean;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
 // Estados do jogo
-type GameState = 'idle' | 'loading' | 'playing' | 'completed';
+type GameState = 'idle' | 'loading' | 'spinning' | 'completed';
 
-const ScratchCardPage = () => {
+const RouletteBoxPage = () => {
   const router = useRouter();
   const { id } = router.query;
   const { user, token, updateUser } = useAuth();
   const isAuthenticated = !!user;
   const { width, height } = useWindowSize();
-  const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 640);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setScreenWidth(window.innerWidth);
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, []);
-
-  // Estados da API
+  // Estados da API (mantidos iguais)
   const [scratchCardData, setScratchCardData] = useState<ScratchCardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Estados do jogo
+  // Estados do jogo da roleta
   const [gameState, setGameState] = useState<GameState>('idle');
-  const [scratchItems, setScratchItems] = useState<ScratchItem[]>([]);
+  const [rouletteItems, setRouletteItems] = useState<RouletteItem[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [hasWon, setHasWon] = useState(false);
   const [totalWinnings, setTotalWinnings] = useState(0);
-  const [scratchComplete, setScratchComplete] = useState(false);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
-
   const [playingGame, setPlayingGame] = useState(false);
+  const [winningItem, setWinningItem] = useState<RouletteItem | null>(null);
+  
+  // Estados específicos da roleta
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [spinDuration, setSpinDuration] = useState(0);
+  const [finalRotation, setFinalRotation] = useState(0);
 
-
-  // Função para corrigir URLs das imagens
+  // Função para corrigir URLs das imagens (mantida igual)
   const fixImageUrl = (url: string) => {
     if (!url) return '';
     return url
@@ -174,7 +162,7 @@ const ScratchCardPage = () => {
       .replace('/uploads/prizes/', '/uploads/');
   };
 
-  // Função para buscar dados da raspadinha
+  // Função para buscar dados da raspadinha (mantida igual)
   const fetchScratchCardData = async () => {
     if (!id) return;
     
@@ -186,11 +174,11 @@ const ScratchCardPage = () => {
       if (data.success) {
         setScratchCardData(data.data);
       } else {
-        setError('Raspadinha não encontrada');
+        setError('Box não encontrada');
       }
     } catch (err) {
-      setError('Erro ao carregar raspadinha');
-      console.error('Erro ao buscar raspadinha:', err);
+      setError('Erro ao carregar box');
+      console.error('Erro ao buscar box:', err);
     } finally {
       setLoading(false);
     }
@@ -200,213 +188,56 @@ const ScratchCardPage = () => {
     router.push('/');
   };
 
-  // Buscar dados da raspadinha quando o ID estiver disponível
+  // Buscar dados quando o ID estiver disponível
   useEffect(() => {
     if (id) {
       fetchScratchCardData();
     }
   }, [id]);
 
-  // Função para gerar itens da raspadinha baseada no resultado da API
-  const generateScratchItems = (result: GameResult): ScratchItem[] => {
-    if (!scratchCardData?.prizes?.length) {
-      return [];
-    }
+  // Função para determinar raridade baseada no valor
+  const getRarityFromValue = (value: number): 'common' | 'rare' | 'epic' | 'legendary' => {
+    if (value >= 1000) return 'legendary';
+    if (value >= 100) return 'epic';
+    if (value >= 10) return 'rare';
+    return 'common';
+  };
 
-    // Verificar se o resultado é válido
-    if (!result || typeof result !== 'object') {
-      console.error('Resultado inválido:', result);
-      return [];
-    }
-
-    // Usar prêmios da API para gerar itens
-    // Expandir os tipos visuais para acomodar mais prêmios
-    const visualTypes = ['coin', 'gem', 'star', 'crown', 'heart', 'diamond', 'trophy', 'medal', 'gift', 'ticket', 'chest'];
+  // Função para gerar itens da roleta baseada nos prêmios disponíveis
+  const generateRouletteItems = (prizes: Prize[]): RouletteItem[] => {
+    const items: RouletteItem[] = [];
     
-    const itemTypes = scratchCardData.prizes.map((prize, index) => ({
-      type: visualTypes[index % visualTypes.length] as 'coin' | 'gem' | 'star' | 'crown' | 'heart',
-      icon: fixImageUrl(prize.image_url) || '/50_money.webp',
-      baseValue: parseFloat(prize.value || prize.redemption_value || '0'),
-      prizeData: prize
-    }));
-
-    const items: ScratchItem[] = [];
-    
-    if (result.isWinner && result.prize && result.prize.type) {
-      // Encontrar o tipo correspondente ao prêmio ganho
-      const winningPrize = scratchCardData.prizes.find(p => p.id === result.prize?.id);
-      const winningTypeIndex = winningPrize ? scratchCardData.prizes.findIndex(p => p.id === winningPrize.id) : 0;
-      const winningType = itemTypes[winningTypeIndex % itemTypes.length];
+    // Adicionar cada prêmio múltiplas vezes baseado na raridade
+    prizes.forEach((prize, index) => {
+      const value = parseFloat(prize.value || prize.redemption_value || '0');
+      const rarity = getRarityFromValue(value);
       
-      // Adicionar 3 itens do tipo vencedor com o valor do prêmio
-      for (let i = 0; i < 3; i++) {
+      // Quantidade de repetições baseada na raridade (mais comum = mais repetições)
+      let repetitions = 1;
+      switch (rarity) {
+        case 'common': repetitions = 8; break;
+        case 'rare': repetitions = 4; break;
+        case 'epic': repetitions = 2; break;
+        case 'legendary': repetitions = 1; break;
+      }
+
+      for (let i = 0; i < repetitions; i++) {
         items.push({
-          id: i,
-          type: winningType.type,
-          value: parseFloat(result.prize?.value || result.prize?.redemption_value || '0'),
-          icon: fixImageUrl(result.prize?.image_url || '') || winningType.icon
+          id: `${prize.id}-${i}`,
+          name: prize.type === 'MONEY' ? prize.name : prize.product_name || prize.name,
+          image: fixImageUrl(prize.image_url) || '/50_money.webp',
+          value: prize.type === 'MONEY' ? prize.value : prize.redemption_value || '0',
+          type: prize.type,
+          rarity
         });
       }
-      
-      // Preencher o resto com itens aleatórios diferentes, garantindo no máximo 2 de cada tipo
-      const remainingTypes = itemTypes.filter(t => t.type !== winningType.type);
-      const typeUsageCount: { [key: string]: number } = {};
-      
-      for (let i = 3; i < 9; i++) {
-        let selectedType;
-        let attempts = 0;
-        
-        // Tentar encontrar um tipo que ainda não foi usado 2 vezes
-        do {
-          selectedType = remainingTypes[Math.floor(Math.random() * remainingTypes.length)];
-          attempts++;
-        } while ((typeUsageCount[selectedType.type] || 0) >= 2 && attempts < 20);
-        
-        // Se não conseguir encontrar um tipo válido, usar qualquer um dos restantes
-        if ((typeUsageCount[selectedType.type] || 0) >= 2) {
-          const availableTypes = remainingTypes.filter(t => (typeUsageCount[t.type] || 0) < 2);
-          if (availableTypes.length > 0) {
-            selectedType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
-          }
-        }
-        
-        typeUsageCount[selectedType.type] = (typeUsageCount[selectedType.type] || 0) + 1;
-        
-        items.push({
-          id: i,
-          type: selectedType.type,
-          value: selectedType.baseValue,
-          icon: selectedType.icon
-        });
-      }
-    } else if (!result.isWinner || !result.prize) {
-      // Raspadinha perdedora - garantir que NUNCA há 3 iguais
-      const availableTypes = [...itemTypes];
-      
-      // Adicionar tipos fictícios "Ops! Hoje não" para garantir variedade
-      const dummyTypes = [
-        {
-          type: 'coin' as 'coin' | 'gem' | 'star' | 'crown' | 'heart' | 'diamond' | 'trophy' | 'medal' | 'gift' | 'ticket' | 'chest',
-          icon: '/50_money.webp',
-          baseValue: 0,
-          prizeData: null
-        },
-        {
-          type: 'gem' as 'coin' | 'gem' | 'star' | 'crown' | 'heart' | 'diamond' | 'trophy' | 'medal' | 'gift' | 'ticket' | 'chest',
-          icon: '/50_money.webp',
-          baseValue: 0,
-          prizeData: null
-        },
-        {
-          type: 'star' as 'coin' | 'gem' | 'star' | 'crown' | 'heart' | 'diamond' | 'trophy' | 'medal' | 'gift' | 'ticket' | 'chest',
-          icon: '/50_money.webp',
-          baseValue: 0,
-          prizeData: null
-        },
-        {
-          type: 'diamond' as 'coin' | 'gem' | 'star' | 'crown' | 'heart' | 'diamond' | 'trophy' | 'medal' | 'gift' | 'ticket' | 'chest',
-          icon: '/50_money.webp',
-          baseValue: 0,
-          prizeData: null
-        },
-        {
-          type: 'trophy' as 'coin' | 'gem' | 'star' | 'crown' | 'heart' | 'diamond' | 'trophy' | 'medal' | 'gift' | 'ticket' | 'chest',
-          icon: '/50_money.webp',
-          baseValue: 0,
-          prizeData: null
-        }
-      ];
-      
-      // Combinar tipos reais com tipos fictícios
-      const allTypes = [...availableTypes, ...dummyTypes];
-      
-      // Criar um padrão que garante no máximo 2 de cada tipo
-      const pattern = [];
-      
-      // Usar todos os tipos de prêmios disponíveis
-      // Distribuir os tipos de prêmios de forma equilibrada
-      const maxTypesPerPattern = Math.ceil(8 / availableTypes.length);
-      
-      for (let i = 0; i < availableTypes.length; i++) {
-        // Adicionar cada tipo no máximo maxTypesPerPattern vezes
-        const timesToAdd = Math.min(maxTypesPerPattern, 2); // No máximo 2 de cada tipo
-        
-        for (let j = 0; j < timesToAdd; j++) {
-          if (pattern.length < 8) {
-            pattern.push(availableTypes[i]);
-          }
-        }
-      }
-      
-      console.log('Padrão criado:', pattern.length, 'elementos');
-      
-      // Preencher o restante com tipos fictícios
-      while (pattern.length < 9) {
-        const dummyIndex: number = (pattern.length - availableTypes.length * 2) % dummyTypes.length;
-        pattern.push(dummyTypes[dummyIndex]);
-      }
-      
-      // Garantir que temos exatamente 9 elementos
-      if (pattern.length !== 9) {
-        console.warn('Padrão não tem 9 elementos, ajustando...');
-        while (pattern.length < 9) {
-          pattern.push(dummyTypes[0]);
-        }
-        pattern.splice(9); // Remover elementos extras se houver
-      }
-      
-      // Embaralhar o padrão
-      const shuffledPattern = pattern.sort(() => Math.random() - 0.5);
-      
-      // Criar os itens baseados no padrão
-      for (let i = 0; i < 9; i++) {
-        const typeData = shuffledPattern[i];
-        if (typeData) {
-          items.push({
-            id: i,
-            type: typeData.type,
-            value: typeData.baseValue,
-            icon: typeData.icon
-          });
-        } else {
-          // Fallback caso typeData seja undefined
-          items.push({
-            id: i,
-            type: 'coin',
-            value: 0,
-            icon: '/50_money.webp'
-          });
-        }
-      }
-    }
+    });
 
     // Embaralhar os itens
     return items.sort(() => Math.random() - 0.5);
   };
 
-  // Função para verificar se há 3 itens iguais
-  const checkForWin = (items: ScratchItem[]): { hasWon: boolean; winningType?: string; winnings?: number } => {
-    const typeCounts: { [key: string]: number } = {};
-    
-    items.forEach(item => {
-      typeCounts[item.type] = (typeCounts[item.type] || 0) + 1;
-    });
-    
-    for (const [type, count] of Object.entries(typeCounts)) {
-      if (count >= 3) {
-        const winningItem = items.find(item => item.type === type);
-        return {
-          hasWon: true,
-          winningType: type,
-          winnings: winningItem ? winningItem.value : 0 // Valor do prêmio, não multiplicado
-        };
-      }
-    }
-    
-    return { hasWon: false };
-  };
-
-  // Função para jogar na API
+  // Função para jogar na API (mantida igual)
   const playGame = async (authToken: string): Promise<{ result: GameResult | null, errorMessage?: string }> => {
     if (!id || !authToken) return { result: null, errorMessage: "Dados de autenticação ausentes." };
     
@@ -438,7 +269,7 @@ const ScratchCardPage = () => {
     }
   };
 
-  // Função para atualizar saldos do usuário
+  // Função para atualizar saldos do usuário (mantida igual)
   const refreshUserBalance = async () => {
     if (!token) return;
     
@@ -454,7 +285,6 @@ const ScratchCardPage = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Atualizar o contexto de autenticação com os dados atualizados
         updateUser(data.data);
       }
     } catch (error) {
@@ -462,94 +292,125 @@ const ScratchCardPage = () => {
     }
   };
 
-  // Função para iniciar o jogo
-  const handleBuyAndScratch = async () => {
-    if (!isAuthenticated || playingGame) return;
+  // Função para iniciar a roleta
+  const handleOpenBox = async () => {
+    if (!isAuthenticated || playingGame || !scratchCardData) return;
 
     setGameState('loading');
-    setScratchComplete(false);
     setShowConfetti(false);
     setHasWon(false);
     setTotalWinnings(0);
     setGameResult(null);
+    setWinningItem(null);
 
-    
     // Jogar na API
     const { result, errorMessage } = await playGame(token || '');
     
-    console.log('Resultado do jogo:', result); // Debug
+    console.log('Resultado do jogo:', result);
     
     if (result && typeof result === 'object') {
       setGameResult(result);
-      const items = generateScratchItems(result);
-      setScratchItems(items);
-      setGameState('playing');
+      
+      // Gerar itens da roleta
+      const items = generateRouletteItems(scratchCardData.prizes);
+      setRouletteItems(items);
+      
+      // Determinar item vencedor
+      let targetItem: RouletteItem | null = null;
+      
+      if (result.isWinner && result.prize) {
+        // Encontrar um item correspondente ao prêmio ganho
+        targetItem = items.find(item => 
+          item.type === result.prize?.type && 
+          parseFloat(item.value) === parseFloat(result.prize?.value || result.prize?.redemption_value || '0')
+        ) || null;
+        
+        if (targetItem) {
+          targetItem.isWinning = true;
+          setWinningItem(targetItem);
+        }
+      } else {
+        // Para não vencedores, escolher um item aleatório de menor valor
+        const commonItems = items.filter(item => item.rarity === 'common');
+        targetItem = commonItems[Math.floor(Math.random() * commonItems.length)] || items[0];
+      }
+      
+      setGameState('spinning');
+      startRouletteSpin(targetItem, items);
     } else {
-      // Erro ao jogar - voltar ao estado idle
       setGameState('idle');
-      toast.error(errorMessage || 'Erro ao iniciar o jogo. Tente novamente.');
+      toast.error(errorMessage || 'Erro ao abrir a box. Tente novamente.');
     }
   };
 
+  // Função para iniciar a animação da roleta
+  const startRouletteSpin = (targetItem: RouletteItem | null, items: RouletteItem[]) => {
+    if (!targetItem || items.length === 0) return;
 
-
-  // Função chamada quando a raspadinha é completada
-  const handleScratchComplete = async () => {
-    if (scratchComplete || !gameResult) return;
+    setIsSpinning(true);
     
-    setScratchComplete(true);
+    // Encontrar o índice do item alvo
+    const targetIndex = items.findIndex(item => item.id === targetItem.id);
+    const itemWidth = 120; // Largura de cada item
+    const containerWidth = 500; // Largura do container visível
+    const totalWidth = items.length * itemWidth;
     
-    // Usar resultado da API
-    setHasWon(gameResult.isWinner);
-    setTotalWinnings(parseFloat(gameResult.amountWon));
+    // Calcular posição final (centralizar o item alvo)
+    const finalPosition = (targetIndex * itemWidth) - (containerWidth / 2) + (itemWidth / 2);
     
-    if (gameResult.isWinner) {
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 5000);
-    }
+    // Adicionar várias voltas completas + posição final
+    const fullRotations = 3; // 3 voltas completas
+    const finalRotation = (fullRotations * totalWidth) + finalPosition;
     
-    setGameState('completed');
+    setFinalRotation(finalRotation);
     
-    // Atualizar saldos após o jogo
-    await refreshUserBalance();
+    // Duração da animação
+    const duration = 4000; // 4 segundos
+    setSpinDuration(duration);
+    
+    // Finalizar após a animação
+    setTimeout(() => {
+      setIsSpinning(false);
+      setGameState('completed');
+      
+      if (gameResult?.isWinner) {
+        setHasWon(true);
+        setTotalWinnings(parseFloat(gameResult.amountWon));
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 5000);
+      }
+      
+      refreshUserBalance();
+    }, duration);
   };
-
-
 
   // Função para jogar novamente
   const handlePlayAgain = async () => {
-    if (!isAuthenticated || playingGame) return;
+    if (!isAuthenticated || playingGame || !scratchCardData) return;
 
-    // Resetar estados
-    setScratchItems([]);
-    setScratchComplete(false);
+    // Reset states
+    setRouletteItems([]);
     setShowConfetti(false);
     setHasWon(false);
     setTotalWinnings(0);
     setGameResult(null);
-
+    setWinningItem(null);
+    setIsSpinning(false);
+    setFinalRotation(0);
     
-    // Iniciar novo jogo diretamente
-    setGameState('loading');
-    
-    // Jogar na API
-    const { result, errorMessage } = await playGame(token || '');
-    
-    console.log('Resultado do jogo (play again):', result); // Debug
-    
-    if (result && typeof result === 'object') {
-      setGameResult(result);
-      const items = generateScratchItems(result);
-      setScratchItems(items);
-      setGameState('playing');
-    } else {
-      // Erro ao jogar - voltar ao estado idle
-      setGameState('idle');
-      toast.error(errorMessage || 'Erro ao iniciar o jogo. Tente novamente.');
-    }
+    // Start new game
+    await handleOpenBox();
   };
 
-
+  // Função para obter cor da raridade
+  const getRarityColor = (rarity: string) => {
+    switch (rarity) {
+      case 'legendary': return 'from-yellow-500 to-yellow-600 border-yellow-400';
+      case 'epic': return 'from-purple-500 to-purple-600 border-purple-400';
+      case 'rare': return 'from-blue-500 to-blue-600 border-blue-400';
+      default: return 'from-gray-500 to-gray-600 border-gray-400';
+    }
+  };
 
   return (
     <div className={`${poppins.className} min-h-screen bg-neutral-900`}>
@@ -568,41 +429,36 @@ const ScratchCardPage = () => {
       
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
-        {/* Back Button */}
-        {/* <Button 
-          onClick={handleBackClick}
-          variant="outline"
-          className="mb-4 sm:mb-6 bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700 text-sm sm:text-base"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar
-        </Button> */}
-
         {/* Winners */}
         <Winners />
 
-        {/* Game Area - Full Width */}
-        <div className="mt-4 bg-neutral-800 rounded-xl border border-neutral-700 p-4 sm:p-6 mb-6 sm:mb-8" style={{ overscrollBehavior: 'contain' }}>
+        {/* Game Area */}
+        <div className="mt-4 bg-neutral-800 rounded-xl border border-neutral-700 p-4 sm:p-6 mb-6 sm:mb-8">
           {/* Header */}
           <div className="text-center mb-4 sm:mb-6">
             <h2 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              {scratchCardData?.name || '...'}
+              {scratchCardData?.name || '...'} - Roleta
             </h2>
             <p className="text-neutral-400 text-xs sm:text-sm px-2">
-              {scratchCardData?.description || '...'}
+              Gire a roleta e ganhe prêmios incríveis!
             </p>
           </div>
 
           {/* Game States */}
           {gameState === 'idle' && (
             <div className="bg-neutral-700 rounded-lg p-3 sm:p-6 border border-neutral-600 mb-4 sm:mb-6">
-              <div className="relative w-64 h-64 sm:w-96 sm:h-96 lg:w-[32rem] lg:h-[32rem] xl:w-[36rem] xl:h-[36rem] rounded-lg overflow-hidden mx-auto">
-                <Image
-                  src="/raspe_aqui.webp"
-                  alt="Raspe Aqui"
-                  fill
-                  className="object-contain opacity-40"
-                />
+              <div className="relative w-64 h-64 sm:w-96 sm:h-96 lg:w-[32rem] lg:h-[32rem] xl:w-[36rem] xl:h-[36rem] rounded-lg overflow-hidden mx-auto bg-gradient-to-br from-neutral-600 to-neutral-800 border-2 border-yellow-500/30 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center mb-4 mx-auto border-4 border-yellow-400/50">
+                    <Play className="w-12 h-12 sm:w-16 sm:h-16 text-white ml-1" />
+                  </div>
+                  <h3 className="text-white font-bold text-lg sm:text-2xl mb-2">
+                    Box Misteriosa
+                  </h3>
+                  <p className="text-yellow-400 text-sm sm:text-base">
+                    Clique para girar a roleta!
+                  </p>
+                </div>
                 
                 {!isAuthenticated && (
                   <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
@@ -614,7 +470,7 @@ const ScratchCardPage = () => {
                         Faça login para jogar
                       </h3>
                       <p className="text-neutral-400 text-xs sm:text-sm mb-4">
-                        Conecte-se para raspar
+                        Conecte-se para abrir a box
                       </p>
                     </div>
                   </div>
@@ -623,18 +479,18 @@ const ScratchCardPage = () => {
               
               <div className="text-center mt-3 sm:mt-4">
                 <h3 className="text-white font-bold text-lg sm:text-xl mb-2">
-                Reúna 3 imagens iguais e conquiste seu prêmio!
+                  Gire a roleta e ganhe prêmios incríveis!
                 </h3>
                 <p className="text-neutral-400 text-xs sm:text-sm mb-3 sm:mb-4 px-2">
-                O valor correspondente será creditado automaticamente na sua conta.<br />
-                Se preferir receber o produto físico, basta entrar em contato com o nosso suporte.
+                  Cada giro pode render prêmios em dinheiro ou produtos exclusivos.<br />
+                  A sorte está em suas mãos!
                 </p>
                 <Button 
-                  onClick={handleBuyAndScratch}
+                  onClick={handleOpenBox}
                   disabled={!isAuthenticated || !scratchCardData}
-                  className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 disabled:from-neutral-600 disabled:to-neutral-700 text-white font-semibold py-3 sm:py-4 px-6 sm:px-8 rounded-xl w-full lg:w-1/2 transition-all duration-300 shadow-lg hover:shadow-xl border border-yellow-400/20 disabled:border-neutral-600/20 cursor-pointer disabled:cursor-not-allowed text-sm sm:text-base"
+                  className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 disabled:from-neutral-600 disabled:to-neutral-700 text-white font-semibold py-3 sm:py-4 px-6 sm:px-8 rounded-xl w-full lg:w-1/2 transition-all duration-300 shadow-lg hover:shadow-xl border border-yellow-400/20 disabled:border-neutral-600/20"
                 >
-                  {!isAuthenticated ? 'Faça login para jogar' : scratchCardData ? `Comprar e Raspar (R$ ${parseFloat(scratchCardData.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : 'Carregando...'}
+                  {!isAuthenticated ? 'Faça login para jogar' : scratchCardData ? `Abrir Box (R$ ${parseFloat(scratchCardData.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : 'Carregando...'}
                 </Button>
               </div>
             </div>
@@ -648,73 +504,74 @@ const ScratchCardPage = () => {
                   <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 text-white animate-spin" />
                 </div>
                 <h3 className="text-white font-bold text-lg sm:text-xl mb-2">
-                  Preparando sua raspadinha...
+                  Preparando a roleta...
                 </h3>
                 <p className="text-neutral-400 text-sm">
-                  Aguarde enquanto geramos seus prêmios
+                  Aguarde enquanto carregamos os prêmios
                 </p>
               </div>
             </div>
           )}
 
-          {/* Playing State - Scratch Card */}
-          {(gameState === 'playing' || gameState === 'completed') && (
+          {/* Spinning/Completed State - Roulette */}
+          {(gameState === 'spinning' || gameState === 'completed') && (
             <div className="bg-neutral-700 rounded-lg p-4 sm:p-6 border border-neutral-600 mb-4 sm:mb-6">
-              {gameState === 'playing' && (
+              {gameState === 'spinning' && (
                 <div className="text-center mb-4">
                   <p className="text-white font-semibold text-sm sm:text-base mb-2">
-                    🎯 Raspe a superfície para descobrir os prêmios!
+                    🎲 A roleta está girando...
                   </p>
                   <p className="text-yellow-400 text-xs sm:text-sm">
-                    💡 Você precisa de 3 símbolos iguais para ganhar!
+                    🎯 Aguarde o resultado!
                   </p>
                 </div>
               )}
               
-              {gameState === 'playing' && (
-                <div className="flex justify-center mb-4 touch-none overflow-hidden" style={{ touchAction: 'none' }}>
-                   <div className="w-full flex justify-center" style={{ touchAction: 'none', userSelect: 'none' }}>
-                    <ScratchCard
-                      width={screenWidth < 640 ? Math.min(280, screenWidth - 60) : screenWidth < 1024 ? 450 : 500}
-                        height={screenWidth < 640 ? Math.min(280, screenWidth - 60) : screenWidth < 1024 ? 450 : 500}
-                      image="/raspe_aqui.webp"
-                      finishPercent={85}
-                      brushSize={screenWidth < 640 ? 12 : screenWidth < 1024 ? 20 : 25}
-                      onComplete={handleScratchComplete}
-                    >
-                    <div className="w-full h-full bg-gradient-to-br from-neutral-800 to-neutral-900 p-4">
-                      <div className="grid grid-cols-3 gap-2 h-full">
-                        {scratchItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className="bg-gradient-to-br from-neutral-700 to-neutral-800 rounded-lg flex flex-col items-center justify-center p-2 border border-neutral-600"
-                          >
-                            <div className="w-8 h-8 mb-1 relative">
-                              <Image
-                                src={item.icon}
-                                alt={`Prêmio ${item.value}`}
-                                fill
-                                className="object-contain"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = '/50_money.webp';
-                                }}
-                              />
-                            </div>
-                            <p className="text-white text-xs font-bold text-center">
-                              {item.value > 0 ? `R$ ${item.value}` : 'Ops! Hoje não'}
-                            </p>
-                          </div>
-                        ))}
+              {/* Roulette Container */}
+              <div className="relative w-full max-w-lg mx-auto mb-6">
+                {/* Pointer */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+                  <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-b-[20px] border-b-yellow-500 drop-shadow-lg"></div>
+                </div>
+                
+                {/* Roulette Track */}
+                <div className="relative h-24 bg-neutral-800 rounded-lg border-2 border-neutral-600 overflow-hidden">
+                  <div 
+                    className="absolute top-0 left-0 h-full flex transition-transform ease-out"
+                    style={{
+                      transform: `translateX(-${finalRotation}px)`,
+                      transitionDuration: isSpinning ? `${spinDuration}ms` : '0ms',
+                      transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                    }}
+                  >
+                    {rouletteItems.map((item, index) => (
+                      <div
+                        key={`${item.id}-${index}`}
+                        className={`flex-shrink-0 w-[120px] h-full flex flex-col items-center justify-center p-2 border-r border-neutral-600 bg-gradient-to-br ${getRarityColor(item.rarity)} ${item.isWinning ? 'ring-4 ring-yellow-400 ring-opacity-75' : ''}`}
+                      >
+                        <div className="w-8 h-8 relative mb-1">
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            className="object-contain"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/50_money.webp';
+                            }}
+                          />
+                        </div>
+                        <p className="text-white text-xs font-bold text-center leading-tight">
+                          {item.type === 'MONEY' ? `R$ ${parseFloat(item.value).toFixed(0)}` : item.name.substring(0, 8)}
+                        </p>
                       </div>
-                    </div>
-                  </ScratchCard>
+                    ))}
                   </div>
                 </div>
-              )}
+              </div>
               
               {gameState === 'completed' && (
-                <div className="text-center mb-4">
+                <div className="text-center">
                   {hasWon ? (
                     <div>
                       <h3 className="text-green-400 font-bold text-lg sm:text-xl mb-2">
@@ -730,7 +587,7 @@ const ScratchCardPage = () => {
                         </p>
                       )}
                       <p className="text-neutral-400 text-xs sm:text-sm mt-1">
-                        Você conseguiu 3 símbolos iguais!
+                        A sorte estava ao seu lado!
                       </p>
                     </div>
                   ) : (
@@ -739,81 +596,35 @@ const ScratchCardPage = () => {
                         😔 Ops! Não foi dessa vez!
                       </h3>
                       <p className="text-neutral-400 text-sm">
-                        Você precisa de 3 símbolos iguais para ganhar
+                        Continue tentando, a sorte pode mudar!
                       </p>
                     </div>
                   )}
-                </div>
-              )}
-              
-              {/* Results Grid for Completed State */}
-              {gameState === 'completed' && (
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 max-w-md mx-auto">
-                  {scratchItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="relative aspect-square bg-gradient-to-br from-neutral-600 to-neutral-700 rounded-lg border border-neutral-500 overflow-hidden"
-                    >
-                      <div className="absolute inset-0 flex flex-col items-center justify-center p-2 bg-gradient-to-br from-neutral-600/20 to-neutral-700/20">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 mb-1 relative mx-auto">
-                          <Image
-                            src={item.icon}
-                            alt={`Prêmio ${item.value}`}
-                            fill
-                            className="object-contain"
-                          />
-                        </div>
-                        <p className="text-xs sm:text-sm font-bold text-center text-white">
-                           {item.value > 0 ? `R$ ${item.value}` : 'Ops! Hoje não'}
-                          </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {gameState === 'completed' && (
-                <div className="text-center mt-4">
-                  {hasWon && gameResult?.prize?.type === 'PRODUCT' ? (
-                    <Button 
-                      onClick={() => router.push('/v1/profile/inventory')}
-                      className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-lg w-full transition-all duration-300 shadow-lg hover:shadow-xl border border-purple-400/20 text-sm"
-                    >
-                      Ir para Inventário
-                    </Button>
-                  ) : (
-                    <Button 
-                      onClick={handlePlayAgain}
-                      disabled={!isAuthenticated || !scratchCardData}
-                      className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 disabled:from-neutral-600 disabled:to-neutral-700 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed"
-                    >
-                      {scratchCardData ? `Jogar Novamente (R$ ${parseFloat(scratchCardData.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : 'Carregando...'}
-                    </Button>
-                  )}
+                  
+                  <div className="mt-4">
+                    {hasWon && gameResult?.prize?.type === 'PRODUCT' ? (
+                      <Button 
+                        onClick={() => router.push('/v1/profile/inventory')}
+                        className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-lg w-full transition-all duration-300 shadow-lg hover:shadow-xl border border-purple-400/20 text-sm"
+                      >
+                        Ir para Inventário
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={handlePlayAgain}
+                        disabled={!isAuthenticated || !scratchCardData}
+                        className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 disabled:from-neutral-600 disabled:to-neutral-700 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        {scratchCardData ? `Girar Novamente (R$ ${parseFloat(scratchCardData.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : 'Carregando...'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           )}
-
-          {/* Game Info */}
-          {/* <div className="bg-neutral-700 rounded-lg p-3 sm:p-4 border border-neutral-600">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-              <div>
-                <p className="text-white font-semibold text-sm sm:text-base">SEU SALDO</p>
-                <p className="text-green-400 text-lg sm:text-xl font-bold">
-                  {isAuthenticated && user?.wallet?.[0]?.balance ? `R$ ${parseFloat(user.wallet[0].balance).toFixed(2).replace('.', ',')}` : 'R$ 0,00'}
-                </p>
-              </div>
-              <Button 
-                disabled={!isAuthenticated}
-                className="bg-neutral-600 hover:bg-neutral-800 disabled:bg-neutral-700 disabled:cursor-not-allowed text-white font-bold py-2 px-4 sm:px-6 rounded-lg cursor-pointer text-xs sm:text-sm w-full sm:w-auto"
-              >
-                Ver histórico
-              </Button>
-            </div>
-          </div> */}
         </div>
-
 
         {/* Prize Section */}
         <div className="rounded-xl">
@@ -830,42 +641,26 @@ const ScratchCardPage = () => {
                   return valueA - valueB;
                 })
                 .slice(0, 20)
-                .map((prize, index) => (
-                <div key={prize.id} className="flex-shrink-0 w-38 xl:w-auto">
-                  <div className="flex flex-col border-2 border-yellow-500/30 p-3 rounded-lg bg-gradient-to-t from-yellow-500/17 from-[0%] to-[35%] to-yellow-400/10 cursor-pointer aspect-square hover:scale-105 transition-all duration-300">
-                  <Image
-                    src={fixImageUrl(prize.image_url)}
-                      alt={prize.type === 'MONEY' ? `${parseFloat(prize.value || '0').toFixed(0)} Reais` : prize.name}
-                      width={80}
-                      height={80}
-                      className="size-full p-3 object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = '/50_money.webp';
-                    }}
-                  />
-                    <h3 className="text-sm font-semibold mb-3 overflow-hidden text-ellipsis text-nowrap w-30 text-white">
-                      {prize.type === 'MONEY' ? prize.name : prize.product_name}
-                    </h3>
-                    <div className="px-1.5 py-1 bg-white text-neutral-900 rounded-sm text-sm font-semibold self-start">
-                      R$ {prize.type === 'MONEY' ? parseFloat(prize.value || '0').toFixed(2).replace('.', ',') : parseFloat(prize.redemption_value || '0').toFixed(2).replace('.', ',')}
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-8">
-                <p className="text-neutral-400 text-sm">Nenhum prêmio disponível</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <Footer />
-    </div>
-  );
-};
-
-export default ScratchCardPage;
-
+                .map((prize, index) => {
+                  const value = parseFloat(prize.type === 'MONEY' ? prize.value || '0' : prize.redemption_value || '0');
+                  const rarity = getRarityFromValue(value);
+                  
+                  return (
+                    <div key={prize.id} className="flex-shrink-0 w-38 xl:w-auto">
+                      <div className={`flex flex-col border-2 p-3 rounded-lg bg-gradient-to-t cursor-pointer aspect-square hover:scale-105 transition-all duration-300 ${getRarityColor(rarity)}`}>
+                        <Image
+                          src={fixImageUrl(prize.image_url)}
+                          alt={prize.type === 'MONEY' ? `${parseFloat(prize.value || '0').toFixed(0)} Reais` : prize.name}
+                          width={80}
+                          height={80}
+                          className="size-full p-3 object-contain"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = '/50_money.webp';
+                          }}
+                        />
+                        <h3 className="text-sm font-semibold mb-3 overflow-hidden text-ellipsis text-nowrap w-30 text-white">
+                          {prize.type === 'MONEY' ? prize.name : prize.product_name}
+                        </h3>
+                        <div className="px-1.5 py-1 bg-white text-neutral-900 rounded-sm text-sm font-semibold self-start">
+                          R$ {prize.type === 'MONEY' ? parseFloat(prize.value || '0').toFixed(2).replace('.', ',') : parseFloat(prize.redemption_value
